@@ -1,0 +1,40 @@
+---
+interface Heading { depth: number; slug: string; text: string }
+interface Props { headings: Heading[]; label?: string }
+const { headings, label = 'On this page' } = Astro.props;
+---
+
+<aside class="toc" aria-label={label}>
+  <div class="label">{label}</div>
+  <ol id="toc">
+    {headings.map((h) => (
+      <li><a href={`#${h.slug}`} class:list={{ d3: h.depth === 3 }}>{h.text}</a></li>
+    ))}
+  </ol>
+</aside>
+<script>
+  // Highlight the section the reader is in.
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#toc a'));
+  const targets = links.map((a) => document.getElementById(decodeURIComponent(a.getAttribute('href')!.slice(1))));
+  if (links.length && 'IntersectionObserver' in window) {
+    let current = -1;
+    const set = (i: number) => {
+      if (i === current) return;
+      current = i;
+      links.forEach((a, j) => a.classList.toggle('on', j === i));
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const en of entries) {
+          if (en.isIntersecting) {
+            const i = targets.indexOf(en.target as HTMLElement);
+            if (i !== -1) set(i);
+          }
+        }
+      },
+      { rootMargin: '-25% 0px -65% 0px' },
+    );
+    targets.forEach((t) => t && io.observe(t));
+    set(0);
+  }
+</script>

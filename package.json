@@ -1,0 +1,42 @@
+{
+  "name": "ruleprobe-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reference site for JakeSelby/ruleprobe, built from the ruleprobe checkout at ruleprobe.jakeselby.com",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check",
+    "test": "node --test scripts/__tests__/*.test.mjs && vitest run",
+    "smoke": "node scripts/smoke.mjs",
+    "deploy": "./scripts/deploy.sh",
+    "infra:synth": "cd infra && npx cdk synth",
+    "infra:diff": "cd infra && npx cdk diff"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.2.0",
+    "@astrojs/sitemap": "^3.7.3",
+    "astro": "6.4.5",
+    "astro-pagefind": "2.0.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^22.20.3",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "typescript": "^5.7.0",
+    "unified": "^11.0.5",
+    "vitest": "^5.0.1"
+  },
+  "overrides": {
+    "vite": "7.3.5"
+  }
+}

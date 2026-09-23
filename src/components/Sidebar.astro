@@ -1,0 +1,48 @@
+---
+import { getTree } from '../lib/ruleprobe/site.ts';
+
+interface Props { activeRoute: string }
+const { activeRoute } = Astro.props;
+const tree = getTree();
+
+const isActive = (route: string) => route === activeRoute;
+const inGroup = (group: { route: string | null; items: { route: string; children?: { route: string }[] }[] }) =>
+  (group.route !== null && activeRoute.startsWith(group.route)) ||
+  group.items.some((i) => isActive(i.route) || i.children?.some((c) => isActive(c.route)));
+const showChildren = (item: { route: string }) => activeRoute.startsWith(item.route);
+---
+
+<nav class="sidebar" id="sidebar" aria-label="Reference navigation">
+  {tree.map((group) => (
+    <details class="sb-group" open={inGroup(group)}>
+      <summary>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+        {group.label}
+        {group.count && <span class="count num">{group.count}</span>}
+      </summary>
+      <ul class="sb-links">
+        {group.route && (
+          <li><a href={group.route} class="all" aria-current={isActive(group.route) ? 'page' : undefined}>{group.allLabel ?? `All ${group.label.toLowerCase()}`}</a></li>
+        )}
+        {group.items.map((item) => (
+          <>
+            <li>
+              <a href={item.route} class:list={{ mono: item.mono }} aria-current={isActive(item.route) ? 'page' : undefined}>
+                {item.label}
+                {item.tag && <span class:list={['tag', { amber: item.tagTone === 'amber' }]}>{item.tag}</span>}
+              </a>
+            </li>
+            {item.children && showChildren(item) && item.children.map((c) => (
+              <li>
+                <a href={c.route} class:list={['sub', { mono: c.mono }]} aria-current={isActive(c.route) ? 'page' : undefined}>
+                  {c.label}
+                  {c.tag && <span class:list={['tag', { amber: c.tagTone === 'amber' }]}>{c.tag}</span>}
+                </a>
+              </li>
+            ))}
+          </>
+        ))}
+      </ul>
+    </details>
+  ))}
+</nav>

@@ -1,0 +1,75 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import MetaStrip from '../components/MetaStrip.astro';
+import SourceBlock from '../components/SourceBlock.astro';
+import { PYPI_URL, packageFacts } from '../lib/ruleprobe/paths.ts';
+import { PAGES } from '../lib/ruleprobe/readme.ts';
+import { version } from '../lib/ruleprobe/version.ts';
+
+// The commands are this site's; the version, the Python floor and the dependency list come from
+// the pinned release, and the development notes below them are the README's.
+const v = version();
+const facts = packageFacts();
+const page = await getEntry('readme', 'install');
+if (!page) throw new Error('The readme collection has no install entry');
+const { Content, headings } = await render(page);
+
+const run = 'uvx ruleprobe report';
+const tool = 'pipx install ruleprobe\nruleprobe report';
+const library = 'pip install ruleprobe';
+const pinned = `uvx ruleprobe@${v} --version`;
+const noDeps = facts.dependencies.length === 0;
+
+const own = [
+  { depth: 2, slug: 'run', text: 'Run it' },
+  { depth: 2, slug: 'install', text: 'Install it' },
+  { depth: 2, slug: 'pin', text: 'Pin a version' },
+];
+---
+
+<DocsLayout
+  title="Install"
+  description={PAGES.install.description}
+  crumbs={[{ label: 'install' }]}
+  sourcePath="pyproject.toml"
+  sourceLabel="View pyproject.toml on GitHub"
+  headings={[...own, ...headings]}
+  kind="Page"
+>
+  <div class="eyebrow"><span class="pill amber">Start here</span></div>
+  <h1>Install</h1>
+  <p class="lede">
+    ruleprobe is one package on <a href={PYPI_URL}>PyPI</a>. Run it without installing anything,
+    install it as a command, or import it as a library.
+  </p>
+  <MetaStrip
+    fields={[
+      { label: 'Version', value: v, mono: true },
+      { label: 'Python', value: facts.requiresPython, mono: true },
+      noDeps ? { label: 'Dependencies', value: 'None' } : { label: 'Dependencies', values: facts.dependencies },
+      { label: 'Licence', value: 'MIT' },
+    ]}
+  />
+  <div class="harness-prose">
+    <h2 id="run">Run it</h2>
+    <p><code>uvx</code> runs the latest release in a throwaway environment and leaves nothing installed.</p>
+    <SourceBlock code={run} lang="sh" label="Run the latest release" />
+
+    <h2 id="install">Install it</h2>
+    <p><code>pipx</code> puts the <code>ruleprobe</code> command on your path, in an environment of its own.</p>
+    <SourceBlock code={tool} lang="sh" label="As a command" />
+    <p><code>pip</code> installs it into the environment you are in, for use as a library.</p>
+    <SourceBlock code={library} lang="sh" label="As a library" />
+
+    <h2 id="pin">Pin a version</h2>
+    <p>Every example on this site comes from v{v}. To run exactly that release:</p>
+    <SourceBlock code={pinned} lang="sh" label={`ruleprobe ${v}`} />
+    <p>
+      It needs Python {facts.requiresPython}{noDeps ? ' and nothing outside the standard library' : `, and ${facts.dependencies.join(', ')}`},
+      as the release's <code>pyproject.toml</code> declares.
+    </p>
+
+    <Content />
+  </div>
+</DocsLayout>

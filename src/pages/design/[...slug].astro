@@ -1,0 +1,92 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import MetaStrip from '../../components/MetaStrip.astro';
+import { PLANNING, designDocs, designLabels, readDesignDoc, type DesignDoc } from '../../lib/ruleprobe/design.ts';
+import { sourceUrl } from '../../lib/ruleprobe/paths.ts';
+import { tag } from '../../lib/ruleprobe/version.ts';
+
+type Props = { type: 'index' } | { type: 'doc'; doc: DesignDoc };
+
+// The planning corpus arrived after 0.1.0. A pin without it builds no /design/ route at all, and
+// the sidebar and the manifest leave it out with the same test, so no link points at nothing.
+export function getStaticPaths() {
+  const docs = designDocs();
+  if (!docs.length) return [];
+  return [
+    { params: { slug: undefined }, props: { type: 'index' } as Props },
+    ...docs.map((doc) => ({ params: { slug: doc.id }, props: { type: 'doc', doc } as Props })),
+  ];
+}
+
+const props = Astro.props as Props;
+const t = tag();
+const docs = designDocs();
+const labels = designLabels(docs);
+const labelOf = (doc: DesignDoc) => (doc.parent ? `${labels.get(doc.parent)} addendum` : labels.get(doc.route)!);
+
+let page: null | {
+  doc: DesignDoc;
+  title: string;
+  label: string;
+  Content: Awaited<ReturnType<typeof render>>['Content'];
+  headings: { depth: number; slug: string; text: string }[];
+} = null;
+if (props.type === 'doc') {
+  const entry = await getEntry('design', props.doc.id);
+  if (!entry) throw new Error(`No design entry for ${props.doc.sourcePath}`);
+  const { Content, headings } = await render(entry);
+  page = { doc: props.doc, title: entry.data.title, label: labelOf(props.doc), Content, headings };
+}
+---
+
+{page === null ? (
+  <DocsLayout
+    title="Design documents"
+    description={`The research, brief, PRD, architecture spine and epics behind ruleprobe, as they stand at ${t}.`}
+    crumbs={[{ label: 'design' }]}
+    sourcePath={PLANNING}
+    sourceLabel="View the planning folder on GitHub"
+    kind="Design"
+  >
+    <div class="eyebrow"><span class="pill amber">Design</span><span class="pill">as of {t}</span></div>
+    <h1>Design documents</h1>
+    <p class="lede">
+      The planning behind ruleprobe, as it stands at {t}. Each document is rendered from the release; the
+      reviews, digests and validation reports behind them stay on GitHub.
+    </p>
+    <div class="cards">
+      {docs.map((doc) => (
+        <a class="card" href={doc.route}>
+          <span class="name sans">{labelOf(doc)}</span>
+          <span class="desc">{readDesignDoc(doc).title}</span>
+        </a>
+      ))}
+    </div>
+  </DocsLayout>
+) : (
+  <DocsLayout
+    title={page.title}
+    description={`${page.title}. A ruleprobe planning document, as it stands at ${t}.`}
+    crumbs={[
+      { label: 'design', href: '/design/' },
+      ...(page.doc.parent ? [{ label: labels.get(page.doc.parent)!, href: page.doc.parent }] : []),
+      { label: page.doc.parent ? 'addendum' : page.label },
+    ]}
+    sourcePath={page.doc.sourcePath}
+    sourceLabel="View on GitHub"
+    headings={page.headings}
+    kind="Design"
+  >
+    <div class="eyebrow"><span class="pill amber">{page.label}</span><span class="pill">as of {t}</span></div>
+    <h1>{page.title}</h1>
+    <MetaStrip fields={[{ label: 'Source', value: page.doc.sourcePath, mono: true }, { label: 'Release', value: t, mono: true }]} />
+    <div class="harness-prose">
+      <page.Content />
+    </div>
+    <p class="ritual-note">
+      Reviews, digests and validation reports for this document stay on GitHub, in
+      <a href={sourceUrl(page.doc.folder)}><code>{page.doc.folder}</code></a> at {t}.
+    </p>
+  </DocsLayout>
+)}

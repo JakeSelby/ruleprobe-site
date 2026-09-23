@@ -1,0 +1,19 @@
+---
+import type { MetaField } from '../lib/ruleprobe/site.ts';
+
+interface Props { fields: MetaField[] }
+const { fields } = Astro.props;
+---
+
+<dl class="meta">
+  {fields.map((f) => (
+    <div class:list={{ wide: (f.value?.length ?? 0) > 20 || (f.mono && f.value?.includes('/')) || (f.values?.length ?? 0) > 3 }}>
+      <dt>{f.label}</dt>
+      {f.values ? (
+        <dd><span class="pills">{f.values.map((v) => <span class="pill">{v}</span>)}</span></dd>
+      ) : (
+        <dd class:list={{ mono: f.mono, amber: f.tone === 'amber' }}>{f.value}</dd>
+      )}
+    </div>
+  ))}
+</dl>

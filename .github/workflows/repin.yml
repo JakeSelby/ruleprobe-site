@@ -1,0 +1,110 @@
+name: repin
+
+# Follows ruleprobe releases so the site never renders a stale ruleprobe.
+# Hourly and on demand: compare the latest release tag with the tag the
+# submodule is pinned to, and when it is newer check that tag out, run the whole
+# gate against it, and only then commit the gitlink to main. A red gate pushes
+# nothing and fails the run. scripts/repin.mjs owns the comparison — it answers
+# `update` for a final `v<semver>` release alone, never a branch, a bare commit
+# or a move backwards. A push made with GITHUB_TOKEN starts no other workflow,
+# so deploy.yml is dispatched here rather than left to the push event.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: repin
+  cancel-in-progress: false
+
+jobs:
+  repin:
+    name: pin the newest release
+    # Off until the site is live: the AWS_DEPLOY_ROLE_ARN repository variable is
+    # set once the first deploy has made the stack, and it turns on deploy.yml and
+    # drift.yml as well. Before then a pin would go nowhere.
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          submodules: true
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Compare the latest release with the pinned tag
+        id: decide
+        run: |
+          latest=$(gh api repos/JakeSelby/ruleprobe/releases/latest --jq .tag_name)
+          # A CI checkout of the submodule is shallow and carries no tags, so fetch the one
+          # tag __version__ names before asking whether HEAD is it, as scripts/smoke.mjs does.
+          pinned="v$(node scripts/version.mjs)"
+          git -C vendor/ruleprobe fetch --quiet --depth=1 origin tag "$pinned"
+          current=$(git -C vendor/ruleprobe describe --tags --exact-match)
+          node scripts/repin.mjs "$current" "$latest"
+
+      - name: Check the new tag out in the submodule
+        if: steps.decide.outputs.action == 'update'
+        env:
+          TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          git -C vendor/ruleprobe fetch --force --depth=1 origin tag "$TAG"
+          git -C vendor/ruleprobe checkout --detach "refs/tags/$TAG"
+          test "$(git -C vendor/ruleprobe describe --tags --exact-match)" = "$TAG"
+
+      # The gate exactly as CLAUDE.md writes it, against the new tag.
+      - if: steps.decide.outputs.action == 'update'
+        run: npm --prefix infra ci
+      - if: steps.decide.outputs.action == 'update'
+        run: npm --prefix infra test
+      - if: steps.decide.outputs.action == 'update'
+        run: npm --prefix infra run build
+      - if: steps.decide.outputs.action == 'update'
+        run: npm ci
+      - if: steps.decide.outputs.action == 'update'
+        run: npm test
+      - if: steps.decide.outputs.action == 'update'
+        run: npm run build
+      - if: steps.decide.outputs.action == 'update'
+        run: node scripts/smoke.mjs
+      - if: steps.decide.outputs.action == 'update'
+        run: npm run check
+
+      - name: Commit the pin and push it to main
+        if: steps.decide.outputs.action == 'update'
+        env:
+          TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- vendor/ruleprobe
+          if git diff --cached --quiet; then
+            echo "::error::the $TAG checkout produced no gitlink change"
+            exit 1
+          fi
+          if [ "$(git diff --cached --name-only)" != 'vendor/ruleprobe' ]; then
+            echo "::error::the run changed more than the submodule pin"
+            git diff --cached --name-only
+            exit 1
+          fi
+          git commit -m "chore(vendor): pin ruleprobe $TAG"
+          git push origin HEAD:main
+
+      # A push authenticated with GITHUB_TOKEN raises no push event, so deploy.yml
+      # would never fire; workflow_dispatch always creates a run.
+      - name: Dispatch the deploy
+        if: steps.decide.outputs.action == 'update'
+        run: gh workflow run deploy.yml --ref main

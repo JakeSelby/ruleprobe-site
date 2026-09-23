@@ -1,0 +1,11 @@
+---
+import { Code } from 'astro:components';
+
+interface Props { code: string; lang: 'python' | 'sh' | 'json' | 'markdown'; label: string }
+const { code, lang, label } = Astro.props;
+---
+
+<div class="code">
+  <div class="code-head"><span>{label}</span><span>{lang}</span><button type="button" class="code-copy" aria-label={`Copy ${label}`}>Copy</button></div>
+  <Code code={code} lang={lang} theme="github-dark-default" />
+</div>

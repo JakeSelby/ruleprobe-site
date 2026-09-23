@@ -1,0 +1,25 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsLayout from '../layouts/DocsLayout.astro';
+
+const entry = await getEntry('changelog', 'changelog');
+if (!entry) throw new Error('The pinned release has no CHANGELOG.md');
+const { Content, headings, remarkPluginFrontmatter } = await render(entry);
+const title = (remarkPluginFrontmatter?.title as string | undefined) ?? 'Changelog';
+---
+
+<DocsLayout
+  title="Changelog"
+  description="Every ruleprobe release and what changed in it."
+  crumbs={[{ label: 'changelog' }]}
+  sourcePath="CHANGELOG.md"
+  sourceLabel="View CHANGELOG on GitHub"
+  headings={headings.filter((h) => h.depth === 2)}
+  tocLabel="Releases"
+  kind="Changelog"
+>
+  <h1>{title}</h1>
+  <div class="harness-prose">
+    <Content />
+  </div>
+</DocsLayout>
