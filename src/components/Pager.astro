@@ -1,0 +1,23 @@
+---
+import type { PageLink } from '../lib/ruleprobe/site.ts';
+
+interface Props { prev: PageLink | null; next: PageLink | null }
+const { prev, next } = Astro.props;
+---
+
+<nav class="pager" aria-label="Previous and next">
+  {prev && (
+    <a href={prev.route}>
+      <span class="dir">← Previous</span>
+      <span class="name">{prev.label}</span>
+      <span class="kind">{prev.kind}</span>
+    </a>
+  )}
+  {next && (
+    <a href={next.route} class="next">
+      <span class="dir">Next →</span>
+      <span class="name">{next.label}</span>
+      <span class="kind">{next.kind}</span>
+    </a>
+  )}
+</nav>

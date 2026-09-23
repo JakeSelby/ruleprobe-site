@@ -1,0 +1,3 @@
+[submodule "vendor/ruleprobe"]
+	path = vendor/ruleprobe
+	url = https://github.com/JakeSelby/ruleprobe.git

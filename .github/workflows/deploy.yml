@@ -1,0 +1,68 @@
+name: deploy
+
+# Builds the site from the committed tree and the pinned submodule, then syncs
+# it to the bucket and invalidates CloudFront. Runs on every push to main and
+# on demand. Infrastructure (`cdk deploy`) stays on the Mac: scripts/deploy.sh.
+# The role this job assumes can only write the bucket, invalidate the
+# distribution and read the stack's outputs.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build and sync
+    # Until the stack exists and its DeployRoleArn output is stored as the
+    # AWS_DEPLOY_ROLE_ARN repository variable, there is nothing to sync to.
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix infra ci
+      - run: npm --prefix infra test
+      - run: npm --prefix infra run build
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/smoke.mjs
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read the stack's outputs
+        id: stack
+        run: |
+          bucket=$(aws cloudformation describe-stacks --stack-name RuleprobeSite \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" --output text)
+          dist=$(aws cloudformation describe-stacks --stack-name RuleprobeSite \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" --output text)
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+          echo "dist=$dist" >> "$GITHUB_OUTPUT"
+
+      - name: Sync the site and invalidate
+        env:
+          BUCKET: ${{ steps.stack.outputs.bucket }}
+          DIST_ID: ${{ steps.stack.outputs.dist }}
+        run: ./scripts/deploy-site.sh

@@ -1,0 +1,37 @@
+name: drift
+
+# Watches the outcome repin.yml exists to produce. A red repin gate pushes nothing and fails
+# quietly, so every two hours this compares the live /manifest.json with the latest
+# ruleprobe release and keeps one `release-drift` issue open while they differ, closing it
+# once they match. scripts/drift.mjs owns the decision and the issue text, so both have tests.
+
+on:
+  schedule:
+    - cron: '47 */2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: compare the live site with the latest release
+    # Off until the site is live, like repin.yml: before the first deploy there is
+    # no /manifest.json to compare, and every run would call that drift.
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: node scripts/drift.mjs

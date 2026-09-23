@@ -1,0 +1,76 @@
+---
+import Layout from './Layout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import Toc from '../components/Toc.astro';
+import Pager from '../components/Pager.astro';
+import { sourceUrl } from '../lib/ruleprobe/paths.ts';
+import { neighbours } from '../lib/ruleprobe/site.ts';
+
+interface Crumb { label: string; href?: string; mono?: boolean }
+interface Heading { depth: number; slug: string; text: string }
+interface Props {
+  title: string;
+  description: string;
+  crumbs?: Crumb[];
+  sourcePath?: string;
+  sourceLabel?: string;
+  headings?: Heading[];
+  tocLabel?: string;
+  wide?: boolean;
+  /** Pagefind indexes only pages that opt in. */
+  index?: boolean;
+  kind?: string;
+  /** The 404 page has no place in the reading order. */
+  pager?: boolean;
+}
+const {
+  title,
+  description,
+  crumbs = [],
+  sourcePath,
+  sourceLabel = 'View source',
+  headings = [],
+  tocLabel = 'On this page',
+  wide = false,
+  index = true,
+  kind,
+  pager = true,
+} = Astro.props;
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+const hasToc = toc.length >= 2;
+const { prev, next } = pager ? neighbours(Astro.url.pathname) : { prev: null, next: null };
+---
+
+<Layout title={title} description={description} hasSidebar>
+  <div class="scrim" id="scrim"></div>
+  <div class:list={['frame', { 'no-toc': !hasToc }]}>
+    <Sidebar activeRoute={Astro.url.pathname} />
+    <main class="content" id="main">
+      <div class="subhead">
+        <nav class="crumb" aria-label="Breadcrumb">
+          <a href="/">ruleprobe</a>
+          {crumbs.map((c, i) => (
+            <>
+              <span class="sep" aria-hidden="true">/</span>
+              {c.href && i < crumbs.length - 1 ? (
+                <a href={c.href} class:list={{ mono: c.mono }}>{c.label}</a>
+              ) : (
+                <span class:list={[i === crumbs.length - 1 ? 'here' : '', { mono: c.mono }]} aria-current={i === crumbs.length - 1 ? 'page' : undefined}>{c.label}</span>
+              )}
+            </>
+          ))}
+        </nav>
+        {sourcePath && (
+          <a class="source-link" href={sourceUrl(sourcePath)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>{sourceLabel}
+          </a>
+        )}
+      </div>
+      <article class:list={['view', { wide }]} data-pagefind-body={index ? '' : undefined} data-pagefind-meta={kind ? `kind:${kind}` : undefined}>
+        <slot />
+      </article>
+      {(prev || next) && <Pager prev={prev} next={next} />}
+    </main>
+    {hasToc && <Toc headings={toc} label={tocLabel} />}
+  </div>
+</Layout>

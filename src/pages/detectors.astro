@@ -1,0 +1,28 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import { PAGES } from '../lib/ruleprobe/readme.ts';
+
+const page = await getEntry('readme', 'detectors');
+if (!page) throw new Error('The readme collection has no detectors entry');
+const { Content, headings } = await render(page);
+---
+
+<DocsLayout
+  title="Detectors"
+  description={PAGES.detectors.description}
+  crumbs={[{ label: 'detectors' }]}
+  sourcePath="README.md"
+  sourceLabel="View README on GitHub"
+  headings={headings}
+  kind="Page"
+>
+  <h1>Detectors</h1>
+  <p class="lede">
+    This page picks up where the overview's <a href="/#sixty-seconds">sixty seconds</a> leaves off: measuring a
+    rule of your own, the detector format, and how the package is put together.
+  </p>
+  <div class="harness-prose">
+    <Content />
+  </div>
+</DocsLayout>

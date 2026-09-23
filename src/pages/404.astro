@@ -1,0 +1,15 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+---
+
+<DocsLayout title="Not found" description="That page is not here." crumbs={[{ label: '404' }]} index={false} pager={false}>
+  <div class="eyebrow"><span class="pill">404</span></div>
+  <h1>Not here.</h1>
+  <p class="lede">A newer release may have moved it since this site was built, or the link was wrong. Everything the site has is in the tree on the left.</p>
+  <div class="cards">
+    <a class="card" href="/"><span class="name sans">Overview</span><span class="desc">What ruleprobe measures, in sixty seconds</span></a>
+    <a class="card" href="/install/"><span class="name sans">Install</span><span class="desc">Run it with uvx, or install it</span></a>
+    <a class="card" href="/detectors/"><span class="name sans">Detectors</span><span class="desc">Measure a rule of your own</span></a>
+    <a class="card" href="/validity/"><span class="name sans">Validity</span><span class="desc">How good the shipped detectors are</span></a>
+  </div>
+</DocsLayout>

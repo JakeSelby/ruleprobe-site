@@ -1,0 +1,26 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsLayout from '../layouts/DocsLayout.astro';
+import { PAGES } from '../lib/ruleprobe/readme.ts';
+
+// One README section, so its heading is the page's title. ruleprobe's own tests assert the
+// corpus table in it matches `ruleprobe corpus` byte for byte, so rendering it needs no Python.
+const page = await getEntry('readme', 'validity');
+if (!page) throw new Error('The readme collection has no validity entry');
+const { Content, headings } = await render(page);
+---
+
+<DocsLayout
+  title={page.data.title}
+  description={PAGES.validity.description}
+  crumbs={[{ label: 'validity' }]}
+  sourcePath="README.md"
+  sourceLabel="View README on GitHub"
+  headings={headings}
+  kind="Page"
+>
+  <h1>{page.data.title}</h1>
+  <div class="harness-prose">
+    <Content />
+  </div>
+</DocsLayout>

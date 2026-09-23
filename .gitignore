@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+
+# CDK
+infra/node_modules/
+infra/cdk.out/
+
+# Screenshots taken during the design loop; never shipped
+/renders/
+
+# Local deployment configuration and generated infrastructure files
+.env*
+!.env.infra.example
+infra/**/*.js
+infra/**/*.d.ts
+infra/**/*.js.map
