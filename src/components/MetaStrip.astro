@@ -12,7 +12,7 @@ const { fields } = Astro.props;
       {f.values ? (
         <dd><span class="pills">{f.values.map((v) => <span class="pill">{v}</span>)}</span></dd>
       ) : (
-        <dd class:list={{ mono: f.mono, amber: f.tone === 'amber' }}>{f.value}</dd>
+        <dd class:list={{ mono: f.mono, accent: f.tone === 'accent' }}>{f.value}</dd>
       )}
     </div>
   ))}

@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>ruleprobe, Open Graph card</title>
+<!-- The card served at /og.png, 1200x630. Render it with brand/render.py; never edit public/og.png.
+     The tagline is the headline of ruleprobe's README at the pinned tag, and the chips name the
+     transcripts it reads. src/lib/ruleprobe/brand.test.ts fails when the headline moves, so re-render then.
+     Fonts load from Google Fonts at render time, as the site does; no font software is bundled. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=block">
+<style>
+ *{box-sizing:border-box;margin:0;padding:0}
+ html,body{width:1200px;height:630px;overflow:hidden;background:#FAFAF9;color:#18181B;text-align:center}
+ body{position:relative;font-family:'IBM Plex Sans',system-ui,sans-serif}
+ .mark{position:absolute;left:0;right:0;top:74px} .mark svg{width:104px;height:104px;border-radius:14px;box-shadow:0 0 0 1.5px #E5E2DE}
+ h1{position:absolute;left:0;right:0;top:206px;font:500 92px/1 'IBM Plex Mono',monospace;letter-spacing:-0.03em}
+ .tag{position:absolute;left:150px;right:150px;top:326px;font:600 44px/1.2 'Bricolage Grotesque',sans-serif;letter-spacing:-0.01em;color:#3F3F46}
+ .tag em{font-style:normal;color:#0F766E}
+ .reads{position:absolute;left:0;right:0;top:470px}
+ .reads .label{display:block;font:500 20px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#71717A;margin-bottom:16px}
+ .row{display:flex;justify-content:center;gap:16px}
+ .chip{font:600 26px/1 'IBM Plex Sans',sans-serif;padding:15px 26px 16px;border-radius:999px;background:#18181B;color:#FAFAF9}
+</style></head><body>
+<div class="mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="2" fill="#FAFAF9"/><rect x="2" y="11" width="12" height="2.4" rx="1.2" fill="#18181B"/><path d="M8 2.6 V6.6" fill="none" stroke="#0D9488" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="8.5" r="1.9" fill="#0D9488"/></svg></div><h1>ruleprobe</h1>
+<div class="tag">Find out which of your agent rules<br>actually <em>fire</em>.</div>
+<div class="reads"><span class="label">Reads the transcripts of</span><div class="row"><div class="chip">Claude Code</div><div class="chip">Codex</div></div></div>
+</body></html>

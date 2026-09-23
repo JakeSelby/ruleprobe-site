@@ -37,8 +37,8 @@ git status --porcelain
 ```
 
 `.github/workflows/build.yml` runs the same list on every pull request. Expected clean-tree result
-at v0.1.0: `# pass 3` from the infra tests; `# pass 28` and `Tests 58 passed` from `npm test`;
-`✓ v0.1.0: 5 routes, 6 pages, 104 internal links resolve, search index and 404 present` from the
+at v0.1.0: `# pass 3` from the infra tests; `# pass 36` and `Tests 64 passed` from `npm test`;
+`✓ v0.1.0: 5 routes, 6 pages, 122 internal links resolve, search index and 404 present` from the
 smoke test; `0 errors` and `0 warnings` from `astro check`, whose 9 hints about `z` are expected;
 and empty porcelain. Generated output and local config are ignored.
 
@@ -82,6 +82,11 @@ and empty porcelain. Generated output and local config are ignored.
 
 ## Things that will bite you
 
+- **`brand/` is the source; `public/` is rendered output.** Never edit `public/og.png` or the
+  icons by hand: change `brand/mark.svg` or `brand/og-card.html`, then run
+  `python3 brand/render.py` and commit what it writes. The card names ruleprobe's README
+  headline and the transcripts it reads (Claude Code, Codex), so a release that changes either
+  needs a re-render; `brand.test.ts` fails on a headline that no longer matches the pin.
 - **The submodule is the content.** A fresh clone without `git submodule update --init` has no
   README to split; `deploy.sh` and the smoke test both refuse that. Bump it only to a tag, and
   stage the gitlink after a checkout: `git submodule status` shows a leading `+` until you do.

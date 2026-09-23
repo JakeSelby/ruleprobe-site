@@ -49,7 +49,7 @@ if (props.type === 'doc') {
     sourceLabel="View the planning folder on GitHub"
     kind="Design"
   >
-    <div class="eyebrow"><span class="pill amber">Design</span><span class="pill">as of {t}</span></div>
+    <div class="eyebrow"><span class="pill accent">Design</span><span class="pill">as of {t}</span></div>
     <h1>Design documents</h1>
     <p class="lede">
       The planning behind ruleprobe, as it stands at {t}. Each document is rendered from the release; the
@@ -78,7 +78,7 @@ if (props.type === 'doc') {
     headings={page.headings}
     kind="Design"
   >
-    <div class="eyebrow"><span class="pill amber">{page.label}</span><span class="pill">as of {t}</span></div>
+    <div class="eyebrow"><span class="pill accent">{page.label}</span><span class="pill">as of {t}</span></div>
     <h1>{page.title}</h1>
     <MetaStrip fields={[{ label: 'Source', value: page.doc.sourcePath, mono: true }, { label: 'Release', value: t, mono: true }]} />
     <div class="harness-prose">
