@@ -14,6 +14,7 @@ interface Props {
 const { title, description, hasSidebar = false } = Astro.props;
 const v = version();
 const changelog = hasChangelog();
+const ogImage = new URL('/og.png', Astro.site ?? SITE_URL).href;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? SITE_URL).href;
 const fullTitle = Astro.url.pathname === '/' ? 'ruleprobe: the reference' : `${title} · ruleprobe`;
 const offsite = skippedSections(readReadme()).map((s) => ({ label: s.heading, href: `${sourceUrl('README.md')}#${s.anchor}` }));
@@ -32,6 +33,12 @@ const offsite = skippedSections(readReadme()).map((s) => ({ label: s.heading, hr
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:site_name" content="ruleprobe" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ruleprobe. Find out which of your agent rules actually fire. Reads the transcripts of Claude Code and Codex." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -40,6 +47,9 @@ const offsite = skippedSections(readReadme()).map((s) => ({ label: s.heading, hr
       rel="stylesheet"
     />
     <title>{fullTitle}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <slot name="head" />
   </head>
   <body>
@@ -51,11 +61,11 @@ const offsite = skippedSections(readReadme()).map((s) => ({ label: s.heading, hr
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
         )}
-        <span class="wordmark"><a href="/">ruleprobe</a> <span class="by">by <a href="https://jakeselby.com">Jake Selby</a></span></span>
+        <span class="wordmark"><a href="/"><svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true"><rect class="mark-paper" width="16" height="16" rx="2" /><rect class="mark-ink" x="2" y="11" width="12" height="2.4" rx="1.2" /><path class="mark-probe" d="M8 2.6 V6.6" fill="none" stroke-width="1.8" stroke-linecap="round" /><circle class="mark-tip" cx="8" cy="8.5" r="1.9" /></svg>ruleprobe</a> <span class="by">by <a href="https://jakeselby.com">Jake Selby</a></span></span>
         {changelog ? (
-          <a class="pill amber num" href="/changelog/" title="Changelog">v{v}</a>
+          <a class="pill accent num" href="/changelog/" title="Changelog">v{v}</a>
         ) : (
-          <span class="pill amber num">v{v}</span>
+          <span class="pill accent num">v{v}</span>
         )}
         <div class="topbar-right">
           <button class="btn search-btn" id="searchBtn" aria-label="Search the reference">

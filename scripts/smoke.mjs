@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Post-build smoke test. Reads the manifest the site publishes and refuses a
-// build that is missing a page, a search index or a 404, that links to a page or
+// build that is missing a page, a search index, a 404 or a brand asset, whose
+// social image tags point anywhere but this origin, that links to a page or
 // an anchor it does not have, or that renders a submodule commit which is not the
 // tagged release `__version__` in ruleprobe/__init__.py claims.
 import fs from 'node:fs';
@@ -38,6 +39,46 @@ for (const r of manifest.routes) {
 
 for (const must of ['404.html', 'pagefind/pagefind.js', 'sitemap-index.xml', 'manifest.json']) {
   if (!fs.existsSync(path.join(dist, must))) fail(`dist/${must} missing`);
+}
+
+// The brand assets the head points at are built and served. brand/render.py writes them.
+const ORIGIN = 'https://ruleprobe.jakeselby.com/';
+for (const asset of ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'og.png']) {
+  if (!fs.existsSync(path.join(dist, asset))) fail(`dist/${asset} missing`);
+}
+
+// Every social image URL is absolute, on this origin, and resolves to a file in dist.
+const metaContents = (html, key, attr) => {
+  const re = new RegExp(`<meta[^>]*${attr}="${key}"[^>]*content="([^"]*)"[^>]*>`, 'g');
+  return [...html.matchAll(re)].map((m) => m[1]);
+};
+const socialPages = [...new Set(['/', ...manifest.routes.map((r) => r.route)])];
+for (const route of socialPages) {
+  const file = fileFor(route);
+  if (!file.endsWith('.html') || !fs.existsSync(file)) continue;
+  const html = fs.readFileSync(file, 'utf8');
+  const images = [...metaContents(html, 'og:image', 'property'), ...metaContents(html, 'twitter:image', 'name')];
+  if (images.length < 2) fail(`${route} carries ${images.length} social image tag(s), expected og:image and twitter:image`);
+  for (const url of images) {
+    if (!url.startsWith(ORIGIN)) {
+      fail(`${route} social image ${url} is not on ${ORIGIN}`);
+      continue;
+    }
+    const asset = path.join(dist, url.slice(ORIGIN.length));
+    if (!fs.existsSync(asset)) fail(`${route} social image ${url} has no file at dist/${path.relative(dist, asset)}`);
+  }
+  if (metaContents(html, 'twitter:card', 'name')[0] !== 'summary_large_image') {
+    fail(`${route} twitter:card is not summary_large_image`);
+  }
+  // No em dash (U+2014) in the image tags, their alt text or the icon links.
+  const owned = [
+    ...images,
+    ...metaContents(html, 'og:image:alt', 'property'),
+    ...[...html.matchAll(/<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*>/g)].map((m) => m[0]),
+  ];
+  for (const text of owned) {
+    if (text.includes('\u2014')) fail(`${route} carries an em dash in ${text}`);
+  }
 }
 
 // The submodule is at the tagged release the site claims to render.

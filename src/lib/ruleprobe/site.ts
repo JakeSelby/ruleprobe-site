@@ -8,7 +8,7 @@ export interface NavItem {
   label: string;
   mono?: boolean;
   tag?: string;
-  tagTone?: 'amber';
+  tagTone?: 'accent';
   children?: NavItem[];
 }
 
@@ -34,7 +34,7 @@ export interface MetaField {
   value?: string;
   values?: string[];
   mono?: boolean;
-  tone?: 'amber';
+  tone?: 'accent';
 }
 
 export interface ManifestRoute {

@@ -29,14 +29,14 @@ const showChildren = (item: { route: string }) => activeRoute.startsWith(item.ro
             <li>
               <a href={item.route} class:list={{ mono: item.mono }} aria-current={isActive(item.route) ? 'page' : undefined}>
                 {item.label}
-                {item.tag && <span class:list={['tag', { amber: item.tagTone === 'amber' }]}>{item.tag}</span>}
+                {item.tag && <span class:list={['tag', { accent: item.tagTone === 'accent' }]}>{item.tag}</span>}
               </a>
             </li>
             {item.children && showChildren(item) && item.children.map((c) => (
               <li>
                 <a href={c.route} class:list={['sub', { mono: c.mono }]} aria-current={isActive(c.route) ? 'page' : undefined}>
                   {c.label}
-                  {c.tag && <span class:list={['tag', { amber: c.tagTone === 'amber' }]}>{c.tag}</span>}
+                  {c.tag && <span class:list={['tag', { accent: c.tagTone === 'accent' }]}>{c.tag}</span>}
                 </a>
               </li>
             ))}
