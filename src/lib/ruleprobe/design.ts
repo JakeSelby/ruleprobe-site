@@ -10,7 +10,9 @@ export const PLANNING = '_bmad-output/planning-artifacts';
  * The planning documents the site publishes, by their path under `PLANNING`. Anything else there
  * stays on GitHub: dotfiles (`.memlog.md`, `.staleness-claims.json`), `digests/`, `imports/`,
  * `reviews/` and validation reports are working material, and each design page links to its
- * folder on GitHub instead. A `*` stands for one dated directory and never crosses a `/`.
+ * folder on GitHub instead. A `*` stands for one directory name and never crosses a `/`;
+ * `{date}` stands for a `YYYY-MM-DD` date and nothing else, so a readiness validation report or a
+ * draft beside the readiness report never matches.
  */
 export const DESIGN_ALLOWLIST = [
   'research/*/research.md',
@@ -20,7 +22,8 @@ export const DESIGN_ALLOWLIST = [
   'prds/*/addendum.md',
   'architecture-spines/*/ARCHITECTURE-SPINE.md',
   'epics.md',
-  'implementation-readiness-*.md',
+  'implementation-readiness-{date}.md',
+  'implementation-readiness-report-{date}.md',
 ] as const;
 
 /** Each kind's order in the navigation, and what the sidebar calls it. */
@@ -50,8 +53,9 @@ export interface DesignDoc {
   folder: string;
 }
 
+const escape = (text: string) => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 const matcher = (glob: string) =>
-  new RegExp(`^${glob.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]+')}$`);
+  new RegExp(`^${glob.split('{date}').map((part) => part.split('*').map(escape).join('[^/]+')).join('\\d{4}-\\d{2}-\\d{2}')}$`);
 const ALLOW = DESIGN_ALLOWLIST.map(matcher);
 
 /** True when `rel` (a path under `PLANNING`) is published. Dotfiles never are. */
@@ -118,7 +122,11 @@ export function designDocs(root = VENDOR): DesignDoc[] {
     const i = KINDS.findIndex((k) => k.dir === d.kind);
     return i === -1 ? KINDS.length : i;
   };
-  return docs.sort((a, b) => rank(a) - rank(b) || a.id.localeCompare(b.id));
+  // Code-point order, not the locale's, so the order is the same on every machine; a document's
+  // group is its own route or its parent's, so an addendum always follows its document directly.
+  const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const group = (d: DesignDoc) => (d.parent ? d.id.replace(/\/addendum$/, '') : d.id);
+  return docs.sort((a, b) => rank(a) - rank(b) || cmp(group(a), group(b)) || Number(Boolean(a.parent)) - Number(Boolean(b.parent)));
 }
 
 /** The body without its front matter, and the one scalar the site reads from it: `title`. */

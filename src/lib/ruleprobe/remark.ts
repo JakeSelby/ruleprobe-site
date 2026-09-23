@@ -73,11 +73,24 @@ export interface LinkOptions {
   root?: string;
 }
 
+/** The raw file on GitHub at the pinned tag, which is what an image in ruleprobe's markdown shows. */
+export function rawUrl(rel: string, ctx: LinkContext): string {
+  return `https://raw.githubusercontent.com/JakeSelby/ruleprobe/${ctx.tag}/${rel}`;
+}
+
+const asText = (node: MdNode) => {
+  node.value = toText(node);
+  node.type = 'text';
+  delete node.url;
+  delete node.children;
+};
+
 /**
  * Rewrite the links ruleprobe writes for GitHub so they work on this site. An anchor in the
  * README goes to the page that now holds that section; a relative link goes to this site's page
  * for the file, else to the file on GitHub at the pinned tag. A link to a file the tag does not
- * carry has nowhere to go, so it renders as its text.
+ * carry, or to a path outside the repository, has nowhere to go, so it renders as its text. A
+ * relative image is served from GitHub at the tag. Anything left relative fails the smoke test.
  */
 export function remarkRuleprobeLinks(options: LinkOptions = {}): Transformer {
   const context = options.context ?? (() => vendorLinkContext());
@@ -86,25 +99,27 @@ export function remarkRuleprobeLinks(options: LinkOptions = {}): Transformer {
     if (!from) return;
     const ctx = context();
     walk(tree as MdNode, (node) => {
-      if ((node.type !== 'link' && node.type !== 'definition') || typeof node.url !== 'string') return;
+      if (typeof node.url !== 'string') return;
       const url = node.url;
+      if (node.type === 'image') {
+        if (isExternalHref(url)) return;
+        const resolved = resolveRelative(from, url);
+        if (resolved && ctx.exists(resolved.rel)) node.url = rawUrl(resolved.rel, ctx);
+        return;
+      }
+      if (node.type !== 'link' && node.type !== 'definition') return;
       if (url.startsWith('#')) {
         if (from === 'README.md') node.url = readmeAnchorRoute(url, ctx);
         return;
       }
       if (isExternalHref(url)) return;
       const resolved = resolveRelative(from, url);
-      if (!resolved) return;
-      const route = routeForRepoPath(resolved.rel, resolved.suffix, ctx);
+      const route = resolved ? routeForRepoPath(resolved.rel, resolved.suffix, ctx) : null;
       if (route) {
         node.url = route;
         return;
       }
-      if (node.type === 'definition') return;
-      node.value = toText(node);
-      node.type = 'text';
-      delete node.url;
-      delete node.children;
+      if (node.type === 'link') asText(node);
     });
   };
 }

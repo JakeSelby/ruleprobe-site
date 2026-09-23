@@ -65,7 +65,7 @@ describe('mapping a repo path', () => {
   it('sends the README and the changelog to their pages', () => {
     expect(routeForRepoPath('README.md', '', ctx)).toBe('/');
     expect(routeForRepoPath('README.md', '#how-good-are-the-detectors', ctx)).toBe('/validity/');
-    expect(routeForRepoPath('README.md', '#no-such-heading', ctx)).toBe('/');
+    expect(routeForRepoPath('README.md', '#no-such-heading', ctx)).toBe('/#no-such-heading');
     expect(routeForRepoPath('CHANGELOG.md', '#020', ctx)).toBe('/changelog/#020');
   });
 
@@ -104,6 +104,23 @@ describe('the link rewriter in the markdown pipeline', () => {
     expect(html).toContain('href="/design/prds/p/"');
     expect(html).toContain('href="https://github.com/JakeSelby/ruleprobe/blob/v0.2.0/docs/releasing.md"');
     expect(html).toContain('href="/design/prds/p/addendum/"');
+  });
+
+  it('keeps an unplaceable README anchor as a fragment on the overview, where smoke fails it', async () => {
+    const html = await render('[gone](#renamed-heading)', 'README.md');
+    expect(html).toContain('href="/#renamed-heading"');
+  });
+
+  it('renders a link that leaves the repository as its text', async () => {
+    const html = await render('See [a sibling](../other/README.md).', 'README.md');
+    expect(html).toContain('See a sibling.');
+    expect(html).not.toContain('href');
+  });
+
+  it('serves a relative image from GitHub at the tag, and leaves an absolute one alone', async () => {
+    const html = await render('![rules](docs/rules/house-style.md) ![x](https://example.test/x.png)', 'README.md');
+    expect(html).toContain('src="https://raw.githubusercontent.com/JakeSelby/ruleprobe/v0.2.0/docs/rules/house-style.md"');
+    expect(html).toContain('src="https://example.test/x.png"');
   });
 
   it('renders a link to a file the tag does not carry as its text', async () => {

@@ -1,8 +1,9 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { PLANNING } from './design.ts';
+import { PLANNING, designDocs } from './design.ts';
 import { VENDOR, parsePackageFacts, sourceUrl } from './paths.ts';
 import { getTree, manifest, neighbours, readingOrder } from './site.ts';
 import { version } from './version.ts';
@@ -32,10 +33,45 @@ describe('the manifest', () => {
     }
   });
 
-  it('lists design routes exactly when the pin carries the planning directory', () => {
-    const planned = fs.existsSync(path.join(VENDOR, PLANNING));
-    expect(m.routes.some((r) => r.route.startsWith('/design/'))).toBe(planned);
-    expect(getTree().some((g) => g.route === '/design/')).toBe(planned);
+  it('lists design routes exactly when the pin publishes a design document', () => {
+    const published = designDocs().length > 0;
+    expect(m.routes.some((r) => r.route.startsWith('/design/'))).toBe(published);
+    expect(getTree().some((g) => g.route === '/design/')).toBe(published);
+  });
+});
+
+describe('the manifest of a release with design documents', () => {
+  const roots: string[] = [];
+  afterAll(() => roots.forEach((r) => fs.rmSync(r, { recursive: true, force: true })));
+
+  it('lists the index and each document with the title its page shows', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ruleprobe-release-'));
+    roots.push(root);
+    const files: Record<string, string> = {
+      'README.md': fs.readFileSync(path.join(VENDOR, 'README.md'), 'utf8'),
+      'ruleprobe/__init__.py': '__version__ = "0.2.0"\n',
+      [`${PLANNING}/prds/prd-x-2026-09-23/prd.md`]: '---\ntitle: "PRD: x"\n---\n\n# PRD: ruleprobe\n',
+      [`${PLANNING}/prds/prd-x-2026-09-23/.memlog.md`]: 'never published\n',
+      [`${PLANNING}/epics.md`]: '---\ntitle: "Epics and stories"\n---\n\nNo heading.\n',
+    };
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), text);
+    }
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.test', ...args], { cwd: root, stdio: 'pipe' });
+    git('init', '-q');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'fixture');
+    const m = manifest(root);
+    expect(m.version).toBe('0.2.0');
+    expect(m.release.tag).toBe('v0.2.0');
+    expect(m.routes.map((r) => r.route)).toEqual([
+      '/', '/install/', '/detectors/', '/validity/', '/design/', '/design/prds/prd-x-2026-09-23/', '/design/epics/',
+    ]);
+    expect(m.routes.find((r) => r.id === 'prds/prd-x-2026-09-23')).toMatchObject({ kind: 'design', title: 'PRD: ruleprobe' });
+    expect(m.routes.find((r) => r.id === 'epics')!.title).toBe('Epics and stories');
+    expect(JSON.stringify(m)).not.toContain('memlog');
   });
 });
 

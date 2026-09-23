@@ -37,7 +37,7 @@ git status --porcelain
 ```
 
 `.github/workflows/build.yml` runs the same list on every pull request. Expected clean-tree result
-at v0.1.0: `# pass 3` from the infra tests; `# pass 28` and `Tests 51 passed` from `npm test`;
+at v0.1.0: `# pass 3` from the infra tests; `# pass 28` and `Tests 58 passed` from `npm test`;
 `✓ v0.1.0: 5 routes, 6 pages, 104 internal links resolve, search index and 404 present` from the
 smoke test; `0 errors` and `0 warnings` from `astro check`, whose 9 hints about `z` are expected;
 and empty porcelain. Generated output and local config are ignored.
@@ -91,7 +91,8 @@ and empty porcelain. Generated output and local config are ignored.
 - **Module paths find `vendor/ruleprobe` by walking up.** Astro bundles `src/lib` into
   `dist/.prerender/chunks/` for the build, so a fixed `../` from a module resolves inside
   `dist/` there.
-- **The design pages are conditional.** The planning corpus arrived after 0.1.0, so a pin without
+- **The changelog and design pages are conditional.** A pin without `CHANGELOG.md` builds no
+  `/changelog/`. The planning corpus arrived after 0.1.0, so a pin without
   `_bmad-output/planning-artifacts` builds no `/design/` route, and the sidebar and the manifest
   leave it out too. `DESIGN_ALLOWLIST` in `src/lib/ruleprobe/design.ts` names what is
   published. Dotfiles, `digests/`, `imports/`, `reviews/` and validation reports never are; each
@@ -99,9 +100,14 @@ and empty porcelain. Generated output and local config are ignored.
 - **Front matter is never parsed beyond `title`.** The loader strips it, so a field YAML would
   reject cannot fail a repin. A document's title is its first H1, else that `title`.
 - **README anchors move with their sections.** `remarkRuleprobeLinks` sends `#how-good-…` to
-  `/validity/`; the smoke test checks that every anchor on every page resolves to an element id.
-  A relative link goes to this site's page for the file, else to GitHub at the tag, and a link
-  to a file the tag lacks renders as its text.
+  `/validity/`, and an anchor into a skipped section to the README on GitHub. An anchor no heading
+  carries becomes `/#anchor`, so the smoke test, which checks that every anchor resolves to an
+  element id, fails on it instead of letting it pass. Slugs follow github-slugger over the
+  rendered heading text; `headingText` in `readme.ts` is where that text is worked out.
+- **Links and images.** A relative link goes to this site's page for the file, else to GitHub at
+  the tag; a link to a file the tag lacks, or outside the repository, renders as its text. A
+  relative image is served from GitHub at the tag. The smoke test fails on any `href` or `src`
+  left relative, outside script bodies.
 - **The README is written as one page.** Its "above" and "below" can point across pages here;
   the detectors page lede bridges the one that matters.
 - **Bare `<placeholder>` tokens in prose.** Markdown parses `<reason>` as HTML and a browser drops

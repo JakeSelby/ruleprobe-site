@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { designDocs } from './design.ts';
-import { REPO_URL, VENDOR, vendorFile } from './paths.ts';
+import { REPO_URL, VENDOR, sourceUrl, vendorFile } from './paths.ts';
 import { anchorRoutes, composePages, readReadme } from './readme.ts';
 import { tag } from './version.ts';
 
@@ -34,9 +34,13 @@ export function resolveRelative(fromRepoPath: string, href: string): { rel: stri
   return { rel: joined === '.' ? '' : joined.replace(/\/+$/, ''), suffix };
 }
 
-/** Where a README anchor lands: its section's page, or the overview when nothing holds it. */
+/**
+ * Where a README anchor lands: the page holding its section. An anchor no heading carries keeps
+ * its fragment on the overview, where the smoke test fails on it rather than let it pass quietly.
+ */
 export function readmeAnchorRoute(anchor: string, ctx: LinkContext): string {
-  return ctx.readmeAnchors.get(anchor.replace(/^#/, '')) ?? '/';
+  const slug = anchor.replace(/^#/, '');
+  return ctx.readmeAnchors.get(slug) ?? `/#${slug}`;
 }
 
 /**
@@ -65,7 +69,7 @@ export function vendorLinkContext(root = VENDOR): LinkContext {
     tag: tag(root),
     exists: (rel) => fs.existsSync(vendorFile(rel, root)),
     isDir: (rel) => fs.statSync(vendorFile(rel, root)).isDirectory(),
-    readmeAnchors: anchorRoutes(readme, composePages(readme)),
+    readmeAnchors: anchorRoutes(readme, composePages(readme), sourceUrl('README.md', root)),
     designRoutes: new Map(designDocs(root).map((d) => [d.sourcePath, d.route])),
   };
   if (root === VENDOR) cached = ctx;

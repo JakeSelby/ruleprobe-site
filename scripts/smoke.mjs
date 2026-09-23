@@ -69,8 +69,10 @@ if (version !== null) {
 }
 
 // Every internal link resolves to a file in dist, and every anchor, on another page or this
-// one, to an element with that id. The README's anchors are rewritten to the page that holds
-// each section, so this is what proves the rewrite landed.
+// one, to an element with that id. The rewriter sends a README anchor it cannot place to `/#…`
+// rather than to `/`, so a heading that moved or a slug it got wrong fails here. A link or an
+// image left relative is one the rewriter did not handle, and fails too. Script bodies are
+// skipped: the search palette builds hrefs from a template there.
 const htmlFiles = [];
 const walk = (dir) => {
   for (const name of fs.readdirSync(dir)) {
@@ -90,12 +92,20 @@ const idsIn = (file) => {
 };
 let links = 0;
 const seen = new Set();
+const ABSOLUTE = /^([a-z][a-z0-9+.-]*:|\/\/)/i;
 for (const file of htmlFiles) {
-  const html = fs.readFileSync(file, 'utf8');
+  const html = fs.readFileSync(file, 'utf8').replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  for (const m of html.matchAll(/\ssrc="([^"]+)"/g)) {
+    if (!ABSOLUTE.test(m[1]) && !m[1].startsWith('/')) fail(`${path.relative(dist, file)} loads ${m[1]}, a relative path the rewriter left`);
+  }
   for (const m of html.matchAll(/href="([^"]+)"/g)) {
     const href = m[1].replace(/&amp;/g, '&');
     const local = href.startsWith('#');
-    if (!local && (!href.startsWith('/') || href.startsWith('//'))) continue;
+    if (ABSOLUTE.test(href)) continue;
+    if (!local && !href.startsWith('/')) {
+      fail(`${path.relative(dist, file)} links to ${href}, a relative path the rewriter left`);
+      continue;
+    }
     links++;
     const target = local ? file : fileFor(href);
     const anchor = href.includes('#') ? decodeURIComponent(href.slice(href.indexOf('#') + 1)) : '';

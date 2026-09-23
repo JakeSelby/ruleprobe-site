@@ -88,40 +88,69 @@ export interface Readme {
 }
 
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+const ATX = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
+const SETEXT = /^ {0,3}(=+|-+)[ \t]*$/;
+/** Lines that start a block of their own, so an underline below them is not a setext heading. */
+const NOT_PARAGRAPH = /^( {0,3}([-*+]|\d+[.)])([ \t]|$)| {0,3}>| {0,3}<| {4}|\t)/;
 
-/**
- * Walk markdown lines and report, for each, whether it sits inside a fenced code block. A fence
- * closes on a line of the same character, at least as long, with nothing after it.
- */
-function fenceStates(lines: string[]): boolean[] {
-  const inside: boolean[] = [];
-  let fence: string | null = null;
-  for (const line of lines) {
-    if (fence === null) {
-      const open = FENCE_OPEN.exec(line);
-      inside.push(Boolean(open));
-      if (open) fence = open[1];
-      continue;
-    }
-    inside.push(true);
-    const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
-    if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-  }
-  return inside;
+interface LineInfo {
+  fenced: boolean;
+  /** Set on the first line of a heading. */
+  heading: Heading | null;
+  /** A setext underline, or a later line of a multi-line setext heading: neither is body text. */
+  consumed: boolean;
 }
 
-const ATX = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/;
+/**
+ * Walk markdown lines once and say, for each, whether it sits in a fenced code block and whether
+ * it is a heading: ATX (`## Text`) or setext (text underlined with `===` or `---`). A fence closes
+ * on a line of the same character, at least as long, with nothing after it. A setext heading is the
+ * paragraph directly above its underline, which is how CommonMark reads it.
+ */
+function scan(lines: string[]): LineInfo[] {
+  const info: LineInfo[] = [];
+  let fence: string | null = null;
+  lines.forEach((line) => {
+    if (fence !== null) {
+      info.push({ fenced: true, heading: null, consumed: false });
+      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      return;
+    }
+    const open = FENCE_OPEN.exec(line);
+    if (open) {
+      fence = open[1];
+      info.push({ fenced: true, heading: null, consumed: false });
+      return;
+    }
+    const atx = ATX.exec(line);
+    info.push({ fenced: false, heading: atx ? { depth: atx[1].length, text: atx[2] } : null, consumed: false });
+  });
+  lines.forEach((line, i) => {
+    const under = SETEXT.exec(line);
+    if (!under || info[i].fenced || info[i].heading || i === 0) return;
+    let top = i;
+    while (
+      top > 0 &&
+      lines[top - 1].trim() !== '' &&
+      !info[top - 1].fenced &&
+      !info[top - 1].heading &&
+      !info[top - 1].consumed &&
+      !SETEXT.test(lines[top - 1]) &&
+      !NOT_PARAGRAPH.test(lines[top - 1])
+    ) {
+      top--;
+    }
+    if (top === i) return;
+    const text = lines.slice(top, i).map((l) => l.trim()).join(' ');
+    info[top].heading = { depth: under[1][0] === '=' ? 1 : 2, text };
+    for (let j = top + 1; j <= i; j++) info[j].consumed = true;
+  });
+  return info;
+}
 
 export function headingsIn(markdown: string): Heading[] {
-  const lines = markdown.split('\n');
-  const fenced = fenceStates(lines);
-  const out: Heading[] = [];
-  lines.forEach((line, i) => {
-    if (fenced[i]) return;
-    const m = ATX.exec(line);
-    if (m) out.push({ depth: m[1].length, text: m[2] });
-  });
-  return out;
+  return scan(markdown.split('\n')).flatMap((l) => (l.heading ? [l.heading] : []));
 }
 
 const trimBlank = (text: string) => text.replace(/^\s*\n/, '').replace(/\s+$/, '');
@@ -129,22 +158,29 @@ const trimBlank = (text: string) => text.replace(/^\s*\n/, '').replace(/\s+$/, '
 /** Split README markdown at its H2s, outside fenced code, which a `# heading` in an example is. */
 export function splitReadme(markdown: string): Readme {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
-  const fenced = fenceStates(lines);
+  const info = scan(lines);
   let name = '';
   const preamble: string[] = [];
   const sections: { heading: string; lines: string[] }[] = [];
+  // A setext underline, or a continuation line of its heading, goes wherever its heading went:
+  // dropped when the heading became the name or a section, kept when it stays in a body.
+  let taken = false;
+  const body = () => (sections.length ? sections[sections.length - 1].lines : preamble);
   lines.forEach((line, i) => {
-    const m = fenced[i] ? null : ATX.exec(line);
-    if (m && m[1].length === 2) {
-      sections.push({ heading: m[2], lines: [] });
+    const { heading: h, consumed } = info[i];
+    if (consumed) {
+      if (!taken) body().push(line);
       return;
     }
-    if (sections.length) {
-      sections[sections.length - 1].lines.push(line);
-    } else if (m && m[1].length === 1 && !name) {
-      name = m[2];
+    taken = false;
+    if (h && h.depth === 2) {
+      sections.push({ heading: h.text, lines: [] });
+      taken = true;
+    } else if (!sections.length && h && h.depth === 1 && !name) {
+      name = h.text;
+      taken = true;
     } else {
-      preamble.push(line);
+      body().push(line);
     }
   });
   if (!name) throw new Error('README.md has no H1');
@@ -168,14 +204,24 @@ export function unmappedHeadings(readme: Readme, map = SECTION_MAP): string[] {
 }
 
 /**
- * A heading's text as a reader sees it: link targets, code ticks and emphasis markers gone.
- * The slug is taken from this, as Astro and GitHub both take it from the rendered text.
+ * A heading's text as a reader sees it: link targets, code ticks, emphasis and strikethrough
+ * markers, inline HTML, backslash escapes and the common entities gone. The slug is taken from
+ * this, as Astro and GitHub both take it from the rendered text.
  */
 export function headingText(markdown: string): string {
+  // An escaped character is literal text, so it is set aside before any marker is stripped.
+  const escaped: string[] = [];
   return markdown
+    .replace(/\\([!-/:-@[-`{-~])/g, (_, c: string) => `\uE000${escaped.push(c) - 1}\uE001`)
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/`+([^`]*)`+/g, '$1')
+    .replace(/<(https?:\/\/[^>\s]+)>/g, '$1')
+    .replace(/<\/?[A-Za-z][^>]*>/g, '')
     .replace(/(\*{1,3})(\S(?:.*?\S)?)\1/g, '$2')
+    .replace(/(^|[^\p{L}\p{N}_])(_{1,3})(\S(?:.*?\S)?)\2(?=[^\p{L}\p{N}_]|$)/gu, '$1$3')
+    .replace(/~~(\S(?:.*?\S)?)~~/g, '$1')
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' })[e]!)
+    .replace(/\uE000(\d+)\uE001/g, (_, i: string) => escaped[Number(i)])
     .trim();
 }
 
@@ -238,19 +284,24 @@ export function composePages(readme: Readme, map = SECTION_MAP): Record<PageKey,
 /**
  * Where each README anchor lands on the site. The key is the slug GitHub gives the heading in
  * README.md; the value is the page holding it, with the page's own slug for it, or the page alone
- * when the heading became that page's title.
+ * when the heading became that page's title. A section the site skips goes to `offsite`, the
+ * README on GitHub, when one is given. GitHub numbers repeats across the whole file, the lead's
+ * headings included, so every heading is slugged in order even where it maps nowhere.
  */
-export function anchorRoutes(readme: Readme, pages: Record<PageKey, Page>): Map<string, string> {
+export function anchorRoutes(readme: Readme, pages: Record<PageKey, Page>, offsite: string | null = null): Map<string, string> {
   const onGitHub = new Slugger();
   const routes = new Map<string, string>();
   onGitHub.slug(readme.name);
+  for (const h of headingsIn(readme.lead)) onGitHub.slug(h.text);
   const onPage = new Map<PageKey, Slugger>();
-  const pageOf = (heading: string) => SECTION_MAP[heading];
   for (const section of readme.sections) {
-    const key = pageOf(section.heading);
+    const key = SECTION_MAP[section.heading];
     const github = onGitHub.slug(section.heading);
     const deeper = section.subheadings.map((h) => onGitHub.slug(h.text));
-    if (key === 'skip' || !key) continue;
+    if (key === 'skip' || !key) {
+      if (offsite) [github, ...deeper].forEach((slug) => routes.set(slug, `${offsite}#${slug}`));
+      continue;
+    }
     const page = pages[key];
     const slugger = onPage.get(key) ?? new Slugger();
     onPage.set(key, slugger);
@@ -268,6 +319,7 @@ export function anchorRoutes(readme: Readme, pages: Record<PageKey, Page>): Map<
 export function sectionAnchors(readme: Readme): Map<string, string> {
   const slugger = new Slugger();
   slugger.slug(readme.name);
+  for (const h of headingsIn(readme.lead)) slugger.slug(h.text);
   const out = new Map<string, string>();
   for (const section of readme.sections) {
     out.set(section.heading, slugger.slug(section.heading));

@@ -50,6 +50,7 @@ describe('the design allowlist', () => {
       'architecture-spines/a/ARCHITECTURE-SPINE.md',
       'epics.md',
       'implementation-readiness-2026-09-23.md',
+      'implementation-readiness-report-2026-09-23.md',
     ]) {
       expect(isPublished(rel), rel).toBe(true);
     }
@@ -69,6 +70,9 @@ describe('the design allowlist', () => {
       'prds/p/deeper/prd.md',
       'research/research.md',
       'prds/.hidden/prd.md',
+      'implementation-readiness-validation-report-2026-09-23.md',
+      'implementation-readiness-draft.md',
+      'implementation-readiness-2026-09-23.md.bak',
     ]) {
       expect(isPublished(rel), rel).toBe(false);
     }
@@ -105,6 +109,17 @@ describe('collecting design documents', () => {
     expect(addendum.folder).toBe(`${PLANNING}/prds/prd-ruleprobe-2026-09-23`);
     expect(docs.find((d) => d.id === 'epics')!.folder).toBe(PLANNING);
     expect(docs.every((d) => !d.sourcePath.split('/').some((p) => p.startsWith('.')))).toBe(true);
+  });
+
+  it('keeps an addendum next to its document when one directory name prefixes another', () => {
+    const docs = designDocs(
+      fixture({
+        'briefs/b-2026-09-23/brief.md': '# One\n',
+        'briefs/b-2026-09-23/addendum.md': '# One addendum\n',
+        'briefs/b-2026-09-23-r2/brief.md': '# Two\n',
+      }),
+    );
+    expect(docs.map((d) => d.id)).toEqual(['briefs/b-2026-09-23', 'briefs/b-2026-09-23/addendum', 'briefs/b-2026-09-23-r2']);
   });
 
   it('titles a document from its H1, which its page renders, else its front matter', () => {

@@ -111,6 +111,15 @@ describe('splitting the README', () => {
     expect(() => splitReadme('# ruleprobe\n\n## Sixty seconds\n')).toThrow(/no line under its H1/);
   });
 
+  it('reads setext headings as CommonMark does, and drops the underline of one it takes', () => {
+    const md = '# x\n\nline\n\nFirst\n-----\n\nbody one\n\nSecond part\nof a title\n===\n\n- item\n---\n\n## Third\n\nbody\n';
+    const readme = splitReadme(md);
+    expect(readme.sections.map((s) => s.heading)).toEqual(['First', 'Third']);
+    expect(readme.sections[0].body).not.toContain('-----');
+    expect(readme.sections[0].subheadings).toEqual([{ depth: 1, text: 'Second part of a title' }]);
+    expect(readme.sections[0].body).toContain('===');
+  });
+
   it('closes a fence only on the same character, at least as long', () => {
     const md = '# x\n\nline\n\n## A\n\n````md\n```\n## Inside\n```\n````\n\n## B\n\nb\n';
     expect(splitReadme(md).sections.map((s) => s.heading)).toEqual(['A', 'B']);
@@ -170,8 +179,10 @@ describe('anchors', () => {
     expect(routes.get('development')).toBe('/install/#development');
   });
 
-  it('has no route for a skipped section, which the footer links on GitHub instead', () => {
+  it('sends a skipped section to the README on GitHub when told where that is', () => {
     expect(routes.has('contributing-and-releases')).toBe(false);
+    const offsite = anchorRoutes(readme, composePages(readme), 'https://github.test/README.md');
+    expect(offsite.get('contributing-and-releases')).toBe('https://github.test/README.md#contributing-and-releases');
     expect(skippedSections(readme)).toEqual([{ heading: 'Contributing and releases', anchor: 'contributing-and-releases' }]);
     expect(sectionAnchors(readme).get('How good are the detectors?')).toBe('how-good-are-the-detectors');
   });
@@ -187,8 +198,23 @@ describe('anchors', () => {
     expect(s.slug('0.1.0 (2026-09-22)')).toBe('010-2026-09-22');
   });
 
+  it('counts the lead\'s headings, as GitHub numbers repeats across the whole file', () => {
+    const md = README.replace('ruleprobe reads the transcripts.', 'ruleprobe reads the transcripts.\n\n### Why\n\nLead.').replace(
+      '### A tool use',
+      '### Why',
+    );
+    const r = splitReadme(md);
+    const map = anchorRoutes(r, composePages(r));
+    expect(map.get('why-1')).toBe('/detectors/#why');
+    expect(map.has('why')).toBe(false);
+  });
+
   it('reads heading text the way a reader sees it', () => {
     expect(headingText('The [`report`](x.md) **command**')).toBe('The report command');
+    expect(headingText('Using _any_ rule, __all__ of them')).toBe('Using any rule, all of them');
+    expect(headingText('snake_case_name stays')).toBe('snake_case_name stays');
+    expect(headingText('~~old~~ new <kbd>K</kbd> &amp; \\*literal\\*')).toBe('old new K & *literal*');
+    expect(new Slugger().slug('Using _any_ rule')).toBe('using-any-rule');
     expect(plainText('A `CLAUDE.md`,\nan [AGENTS.md](a.md).')).toBe('A CLAUDE.md, an AGENTS.md.');
   });
 });
