@@ -56,8 +56,11 @@ export const SECTION_MAP: Readonly<Record<string, PageKey | 'skip'>> = {
   'Sixty seconds on a rule of your own': 'detectors',
   'Writing a detector': 'detectors',
   'What it actually covers': 'home',
+  'Why did that fire?': 'home',
   'How good are the detectors?': 'validity',
   'How it is put together': 'detectors',
+  'The public API': 'detectors',
+  Versioning: 'detectors',
   Development: 'install',
   'Origins and neighbours': 'home',
   // The maintainer's own process; the footer links it on GitHub.
