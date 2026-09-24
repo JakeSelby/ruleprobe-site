@@ -24,6 +24,8 @@ const tagline = text(one(card, /<div class="tag">([\s\S]*?)<\/div>/));
 const cardName = text(one(card, /<h1>([\s\S]*?)<\/h1>/));
 const chips = [...card.matchAll(/<div class="chip">([^<]+)<\/div>/g)].map((m) => m[1]);
 const alt = one(layout, /<meta property="og:image:alt" content="([^"]+)"/);
+const list = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
 describe('the Open Graph card', () => {
   it('carries the README headline at the pin as its tagline', () => {
@@ -36,8 +38,8 @@ describe('the Open Graph card', () => {
   });
 
   it('names the readers the alt text names', () => {
-    expect(chips).toEqual(['Claude Code', 'Codex']);
-    expect(alt.endsWith(`Reads the transcripts of ${chips.join(' and ')}.`)).toBe(true);
+    expect(chips).toEqual(['Claude Code', 'Codex', 'Gemini CLI']);
+    expect(alt.endsWith(`Reads the transcripts of ${list(chips)}.`)).toBe(true);
   });
 });
 
