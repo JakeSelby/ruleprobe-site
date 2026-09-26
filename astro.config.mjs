@@ -7,7 +7,7 @@ import { remarkEscapeAngle, remarkLiftTitle, remarkRuleprobeLinks } from './src/
 
 // The ruleprobe checkout is a submodule under vendor/; the collections in
 // src/content.config.ts read it directly, so this site never copies a line of
-// ruleprobe's prose by hand. See CLAUDE.md for how the pin moves.
+// ruleprobe's prose by hand. See .claude/rules/working-here.md for how the pin moves.
 export default defineConfig({
   site: 'https://ruleprobe.jakeselby.com',
   output: 'static',
